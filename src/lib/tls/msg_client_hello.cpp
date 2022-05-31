@@ -556,6 +556,7 @@ Client_Hello_13::Client_Hello_13(const Policy& policy,
    }
 
 void Client_Hello_13::retry(const Hello_Retry_Request& hrr,
+                            const Policy& policy,
                             Callbacks& cb,
                             RandomNumberGenerator& rng)
    {
@@ -566,7 +567,7 @@ void Client_Hello_13::retry(const Hello_Retry_Request& hrr,
    const auto& supported_groups = m_extensions.get<Supported_Groups>()->groups();
 
    if(hrr.extensions().has<Key_Share>())
-      m_extensions.get<Key_Share>()->retry_offer(*hrr_ks, supported_groups, cb, rng);
+      m_extensions.get<Key_Share>()->retry_offer(*hrr_ks, supported_groups, policy, cb, rng);
 
    // RFC 8446 4.2.2
    //    When sending the new ClientHello, the client MUST copy
