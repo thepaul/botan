@@ -290,7 +290,7 @@ Server_Hello_12::Server_Hello_12(Handshake_IO& io,
          }
       }
 
-   cb.tls_modify_extensions(m_data->extensions, SERVER);
+   cb.tls_modify_extensions(m_data->extensions, SERVER, type());
 
    hash.update(io.send(*this));
    }
@@ -347,7 +347,7 @@ Server_Hello_12::Server_Hello_12(Handshake_IO& io,
       m_data->extensions.add(new Session_Ticket());
       }
 
-   cb.tls_modify_extensions(m_data->extensions, SERVER);
+   cb.tls_modify_extensions(m_data->extensions, SERVER, type());
 
    hash.update(io.send(*this));
    }
