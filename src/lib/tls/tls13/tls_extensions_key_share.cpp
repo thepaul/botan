@@ -20,6 +20,14 @@
    #include <botan/curve25519.h>
 #endif
 
+#if defined(BOTAN_HAS_TLS_13_PQC)
+   #include <botan/internal/composite_public_key.h>
+
+#if defined(BOTAN_HAS_KYBER) || defined(BOTAN_HAS_KYBER_90S)
+   #include <botan/kyber.h>
+#endif
+#endif
+
 #include <botan/dh.h>
 #include <botan/ecdh.h>
 
@@ -53,6 +61,57 @@ namespace {
       group == Group_Params::FFDHE_8192;
    }
 
+#if defined(BOTAN_HAS_TLS_13_PQC)
+#if defined(BOTAN_HAS_KYBER) || defined(BOTAN_HAS_KYBER_90S)
+
+[[maybe_unused]] constexpr bool is_kyber(const Group_Params group)
+   {
+   return
+      group == Group_Params::KYBER_R3_512 ||
+      group == Group_Params::KYBER_R3_768 ||
+      group == Group_Params::KYBER_R3_1024 ||
+      group == Group_Params::KYBER_90s_R3_512 ||
+      group == Group_Params::KYBER_90s_R3_768 ||
+      group == Group_Params::KYBER_90s_R3_1024;
+   }
+
+[[maybe_unused]] constexpr KyberMode::Mode get_kyber_mode(const Group_Params group)
+   {
+   switch(group)
+      {
+      case Group_Params::KYBER_R3_512:
+         return KyberMode::Kyber512;
+      case Group_Params::KYBER_R3_768:
+         return KyberMode::Kyber768;
+      case Group_Params::KYBER_R3_1024:
+         return KyberMode::Kyber1024;
+      case Group_Params::KYBER_90s_R3_512:
+         return KyberMode::Kyber512_90s;
+      case Group_Params::KYBER_90s_R3_768:
+         return KyberMode::Kyber768_90s;
+      case Group_Params::KYBER_90s_R3_1024:
+         return KyberMode::Kyber1024_90s;
+      default:
+         BOTAN_ASSERT(false, "cannot determine kyber mode from non-kyber group ID");
+      }
+   }
+
+#endif
+
+[[maybe_unused]] constexpr bool is_composite(const Group_Params group)
+   {
+   return
+      group == Group_Params::X25519_KYBER_R3_512 ||
+      group == Group_Params::SECP256R1_KYBER_R3_512 ||
+      group == Group_Params::SECP384R1_KYBER_R3_768 ||
+      group == Group_Params::SECP521R1_KYBER_R3_1024 ||
+      group == Group_Params::SECP256R1_KYBER_90s_R3_512 ||
+      group == Group_Params::SECP384R1_KYBER_90s_R3_768 ||
+      group == Group_Params::SECP521R1_KYBER_90s_R3_1024;
+   }
+
+#endif
+
 class Key_Share_Entry
    {
    public:
@@ -74,7 +133,7 @@ class Key_Share_Entry
             }
          }
 
-      Key_Share_Entry(const TLS::Group_Params group, Callbacks& cb, RandomNumberGenerator& rng)
+      Key_Share_Entry(const TLS::Group_Params group, const Policy& policy, Callbacks& cb, RandomNumberGenerator& rng)
          : m_group(group)
          {
          if(is_ecdh(group))
@@ -113,10 +172,29 @@ class Key_Share_Entry
             m_private_key = std::move(skey);
             }
 #endif
+#if defined(BOTAN_HAS_TLS_13_PQC)
+#if defined(BOTAN_HAS_KYBER)
+         else if(is_kyber(group))
+            {
+            auto skey = std::make_unique<Kyber_PrivateKey>(rng, get_kyber_mode(group));
+            skey->set_binary_encoding(KyberKeyEncoding::Raw);
+            m_key_exchange = skey->public_key_bits();
+            m_private_key = std::move(skey);
+            }
+#endif
+         else if(is_composite(group))
+            {
+            auto skey = std::make_unique<Composite_PrivateKey>(rng, group, policy);
+            m_key_exchange = skey->public_key_bits();
+            m_private_key = std::move(skey);
+            }
+#endif
          else
             {
             throw Decoding_Error("cannot create a key offering without a group definition");
             }
+
+         BOTAN_UNUSED(policy);
          }
 
       bool empty() const { return (m_group == Group_Params::NONE) && m_key_exchange.empty(); }
@@ -147,6 +225,14 @@ class Key_Share_Entry
          {
          BOTAN_ASSERT_NOMSG(m_private_key != nullptr);
          BOTAN_ASSERT_NOMSG(m_group == received.m_group);
+
+#if defined(BOTAN_HAS_KYBER) && defined(BOTAN_HAS_TLS_13_PQC)
+         if(is_kyber(m_group) || is_composite(m_group))
+            {
+            return PK_KEM_Decryptor(*m_private_key, rng, "Raw")
+               .decrypt(received.m_key_exchange, 0, std::vector<uint8_t>());
+            }
+#endif
 
          PK_Key_Agreement ka(*m_private_key, rng, "Raw");
 
@@ -302,7 +388,7 @@ class Key_Share_ClientHello
                {
                continue;
                }
-            m_client_shares.emplace_back(group, cb, rng);
+            m_client_shares.emplace_back(group, policy, cb, rng);
             }
          }
       ~Key_Share_ClientHello() = default;
@@ -313,7 +399,7 @@ class Key_Share_ClientHello
       Key_Share_ClientHello(Key_Share_ClientHello&&) = default;
       Key_Share_ClientHello& operator=(Key_Share_ClientHello&&) = default;
 
-      void retry_offer(const TLS::Group_Params to_offer, Callbacks& cb, RandomNumberGenerator& rng)
+      void retry_offer(const TLS::Group_Params to_offer, const Policy& policy, Callbacks& cb, RandomNumberGenerator& rng)
          {
          // RFC 8446 4.2.8
          //    The selected_group field [MUST] not correspond to a group which was provided
@@ -326,7 +412,7 @@ class Key_Share_ClientHello
             }
 
          m_client_shares.clear();
-         m_client_shares.emplace_back(to_offer, cb, rng);
+         m_client_shares.emplace_back(to_offer, policy, cb, rng);
          }
 
       std::vector<uint8_t> serialize() const
@@ -510,6 +596,7 @@ secure_vector<uint8_t> Key_Share::exchange(const Key_Share& peer_keyshare,
 
 void Key_Share::retry_offer(const Key_Share& retry_request_keyshare,
                             const std::vector<Named_Group>& supported_groups,
+                            const Policy& policy,
                             Callbacks& cb,
                             RandomNumberGenerator& rng)
    {
@@ -524,7 +611,7 @@ void Key_Share::retry_offer(const Key_Share& retry_request_keyshare,
          if(!value_exists(supported_groups, selected))
             { throw TLS_Exception(Alert::ILLEGAL_PARAMETER, "group was not advertised as supported"); }
 
-         return ch.retry_offer(selected, cb, rng);
+         return ch.retry_offer(selected, policy, cb, rng);
          },
       [](const auto&, const auto&)
          {
