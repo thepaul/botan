@@ -12,6 +12,8 @@
 #include <botan/tls_messages.h>
 #include <botan/tls_exceptn.h>
 
+#include <utility>
+
 namespace Botan::TLS {
 
 Transcript_Hash_State::Transcript_Hash_State(const std::string &algo_spec)
