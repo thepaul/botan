@@ -96,7 +96,10 @@ bool Text_Policy::negotiate_encrypt_then_mac() const
 
 bool Text_Policy::use_extended_master_secret() const
    {
+   BOTAN_DIAGNOSTIC_PUSH
+   BOTAN_DIAGNOSTIC_IGNORE_DEPRECATED
    return get_bool("use_extended_master_secret", Policy::use_extended_master_secret());
+   BOTAN_DIAGNOSTIC_POP
    }
 
 std::optional<uint16_t> Text_Policy::record_size_limit() const
