@@ -157,6 +157,10 @@ jobs:
             compiler: gcc
             host_os: ubuntu-latest
             make_tool: make
+          - target: static
+            compiler: gcc
+            host_os: windows-latest
+            make_tool: mingw32-make
 
     runs-on: ${{ matrix.host_os }}
 
