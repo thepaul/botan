@@ -576,7 +576,7 @@ def main(args=None):
             if target in ['coverage', 'fuzzers']:
                 make_targets += ['fuzzer_corpus_zip', 'fuzzers']
 
-            if target in ['coverage', 'sanitizer']:
+            if target in ['coverage', 'sanitizer'] and options.os not in ['windows']:
                 make_targets += ['bogo_shim']
 
             cmds.append(make_prefix + make_cmd + make_targets)
