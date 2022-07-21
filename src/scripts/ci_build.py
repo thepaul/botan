@@ -69,7 +69,7 @@ def build_targets(target, target_os):
     yield 'cli'
     yield 'tests'
 
-    if target in ['coverage']:
+    if target in ['coverage', 'sanitizer']:
         yield 'bogo_shim'
 
 def determine_flags(target, target_os, target_cpu, target_cc, cc_bin,
@@ -149,7 +149,10 @@ def determine_flags(target, target_os, target_cpu, target_cc, cc_bin,
         flags += ['--ldflags=-static']
 
     if target == 'coverage':
-        flags += ['--with-coverage-info', '--with-debug-info', '--test-mode']
+        flags += ['--with-coverage-info']
+
+    if target in ['coverage', 'sanitizer']:
+        flags += ['--with-debug-info', '--test-mode']
 
     if target == 'valgrind':
         flags += ['--with-valgrind']
@@ -171,7 +174,7 @@ def determine_flags(target, target_os, target_cpu, target_cc, cc_bin,
     if target == 'fuzzers':
         flags += ['--unsafe-fuzzer-mode']
 
-    if target in ['fuzzers', 'coverage']:
+    if target in ['fuzzers', 'coverage', 'sanitizer']:
         flags += ['--build-fuzzers=test']
 
     if target in ['fuzzers', 'sanitizer']:
@@ -275,7 +278,7 @@ def determine_flags(target, target_os, target_cpu, target_cc, cc_bin,
         if target_os in ['osx', 'ios']:
             flags += ['--with-commoncrypto']
 
-        if target in ['coverage', 'shared', 'static', 'amalgamation']:
+        if target in ['coverage', 'sanitizer', 'shared', 'static', 'amalgamation']:
             flags += ['--with-boost']
             if target_cc == 'clang':
                 # make sure clang ignores warnings in boost headers
@@ -571,7 +574,7 @@ def main(args=None):
             if target in ['coverage', 'fuzzers']:
                 make_targets += ['fuzzer_corpus_zip', 'fuzzers']
 
-            if target in ['coverage']:
+            if target in ['coverage', 'sanitizer']:
                 make_targets += ['bogo_shim']
 
             cmds.append(make_prefix + make_cmd + make_targets)
@@ -582,7 +585,7 @@ def main(args=None):
         if run_test_command is not None:
             cmds.append(run_test_command)
 
-        if target == 'coverage':
+        if target in ['coverage','sanitizer']:
             runner_dir = os.path.abspath(os.path.join(root_dir, 'boringssl', 'ssl', 'test', 'runner'))
 
             cmds.append(['indir:%s' % (runner_dir),
@@ -591,16 +594,16 @@ def main(args=None):
                          '-shim-path', os.path.abspath(os.path.join(root_dir, 'botan_bogo_shim')),
                          '-shim-config', os.path.abspath(os.path.join(root_dir, 'src', 'bogo_shim', 'config.json'))])
 
-        if target in ['coverage', 'fuzzers']:
+        if target in ['coverage', 'sanitizer', 'fuzzers']:
             cmds.append([py_interp, os.path.join(root_dir, 'src/scripts/test_fuzzers.py'),
                          os.path.join(root_dir, 'fuzzer_corpus'),
                          os.path.join(root_dir, 'build/fuzzer')])
 
-        if target in ['shared', 'coverage'] and options.os != 'windows':
+        if target in ['shared', 'coverage', 'sanitizer'] and options.os != 'windows':
             botan_exe = os.path.join(root_dir, 'botan-cli.exe' if options.os == 'windows' else 'botan')
 
             args = ['--threads=%d' % (options.build_jobs)]
-            if target == 'coverage':
+            if target in ['coverage', 'sanitizer']:
                 args.append('--run-slow-tests')
             test_scripts = ['test_cli.py', 'test_cli_crypt.py']
             for script in test_scripts:
@@ -609,7 +612,7 @@ def main(args=None):
 
         python_tests = os.path.join(root_dir, 'src/scripts/test_python.py')
 
-        if target in ['shared', 'coverage']:
+        if target in ['shared', 'coverage', 'sanitizer']:
 
             if options.os == 'windows':
                 if options.cpu == 'x86':

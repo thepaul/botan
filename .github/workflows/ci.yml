@@ -153,6 +153,9 @@ jobs:
             compiler: msvc
             host_os: windows-latest
             make_tool: jom
+          - target: sanitizer
+            compiler: clang
+            host_os: ubuntu-22.04
           - target: lint
             compiler: gcc
             host_os: ubuntu-latest

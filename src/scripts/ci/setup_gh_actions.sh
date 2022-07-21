@@ -51,9 +51,17 @@ if type -p "apt-get"; then
     elif [ "$TARGET" = "lint" ]; then
         sudo apt-get -qq install pylint
 
-    elif [ "$TARGET" = "coverage" ]; then
-        sudo apt-get -qq install g++-8 softhsm2 libtspi-dev lcov python-coverage libboost-all-dev gdb
-        pip install --user codecov
+    elif [ "$TARGET" = "coverage" ] || [ "$TARGET" = "sanitizer" ]; then
+
+        if [ "$TARGET" = "coverage" ]; then
+            sudo apt-get -qq install g++-8 softhsm2 libtspi-dev lcov python-coverage libboost-all-dev gdb
+            pip install --user codecov
+
+        elif [ "$TARGET" = "sanitizer" ]; then
+            sudo apt-get -qq install llvm softhsm2 libtspi-dev libboost-all-dev
+
+        fi
+
         echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
         # TODO: merge changes to Botan's boring fork
