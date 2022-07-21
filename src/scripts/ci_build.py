@@ -69,7 +69,9 @@ def build_targets(target, target_os):
     yield 'cli'
     yield 'tests'
 
-    if target in ['coverage', 'sanitizer']:
+    if target in ['coverage']:
+        yield 'bogo_shim'
+    if target in ['sanitizer'] and target_os not in ['windows']:
         yield 'bogo_shim'
 
 def determine_flags(target, target_os, target_cpu, target_cc, cc_bin,
