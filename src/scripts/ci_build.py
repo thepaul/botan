@@ -585,7 +585,7 @@ def main(args=None):
         if run_test_command is not None:
             cmds.append(run_test_command)
 
-        if target in ['coverage','sanitizer']:
+        if target in ['coverage', 'sanitizer']:
             runner_dir = os.path.abspath(os.path.join(root_dir, 'boringssl', 'ssl', 'test', 'runner'))
 
             cmds.append(['indir:%s' % (runner_dir),
