@@ -594,7 +594,7 @@ def main(args=None):
                          '-shim-path', os.path.abspath(os.path.join(root_dir, 'botan_bogo_shim')),
                          '-shim-config', os.path.abspath(os.path.join(root_dir, 'src', 'bogo_shim', 'config.json'))])
 
-        if target in ['coverage', 'sanitizer', 'fuzzers']:
+        if target in ['coverage', 'fuzzers']:
             cmds.append([py_interp, os.path.join(root_dir, 'src/scripts/test_fuzzers.py'),
                          os.path.join(root_dir, 'fuzzer_corpus'),
                          os.path.join(root_dir, 'build/fuzzer')])
